@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="543.0" prefWidth="788.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <TextArea layoutX="232.0" layoutY="14.0" prefHeight="436.0" prefWidth="542.0" />
+      <Button fx:id="issueTicketButton" layoutX="232.0" layoutY="461.0" mnemonicParsing="false" prefHeight="34.0" prefWidth="138.0" text="Issue New Ticket" />
+      <Button fx:id="callNextTicketButton" layoutX="394.0" layoutY="461.0" mnemonicParsing="false" prefHeight="34.0" prefWidth="138.0" text="Call Next Ticket" />
+      <Button fx:id="refreshQueueStatusButton" layoutX="556.0" layoutY="461.0" mnemonicParsing="false" prefHeight="34.0" prefWidth="138.0" text="Refresh Queue Status" />
+      <ImageView fitHeight="133.0" fitWidth="138.0" layoutX="53.0" layoutY="26.0" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@../dorsu/jareth/auth/DOrSU_logo.png" />
+         </image>
+      </ImageView>
+      <Button fx:id="logoutButton" layoutX="27.0" layoutY="495.0" mnemonicParsing="false" text="Logout" />
+      <Button fx:id="TicketDashboardButton" layoutX="53.0" layoutY="182.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="121.0" text="Ticket Dashboard" />
+      <Button fx:id="QueueHistoryButton" layoutX="53.0" layoutY="220.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="121.0" text="Queue History" />
+      <Button fx:id="infoWindowButton" layoutX="53.0" layoutY="259.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="121.0" text="Info Window" />
+   </children>
+</AnchorPane>

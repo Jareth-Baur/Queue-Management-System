@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.media.MediaView?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane id="AnchorPane" prefHeight="918.0" prefWidth="1308.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <AnchorPane fx:id="containerForTheInfo" prefHeight="919.0" prefWidth="442.0">
+         <children>
+            <Label fx:id="currentlyServingLabel" layoutX="55.0" layoutY="166.0" prefHeight="104.0" prefWidth="332.0" text="Currently Serving: None">
+               <font>
+                  <Font size="28.0" />
+               </font>
+            </Label>
+            <Label fx:id="nextInQueueLabel" layoutX="55.0" layoutY="374.0" prefHeight="104.0" prefWidth="332.0" text="Next in Queue: None">
+               <font>
+                  <Font size="28.0" />
+               </font>
+            </Label>
+            <Label fx:id="totalQueueLabel" layoutX="55.0" layoutY="270.0" prefHeight="104.0" prefWidth="332.0" text="Total Tickets in Queue: 0">
+               <font>
+                  <Font size="28.0" />
+               </font>
+            </Label>
+            <Button fx:id="selectFileButton" layoutX="14.0" layoutY="880.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="101.0" text="Select File" />
+         </children>
+      </AnchorPane>
+      <AnchorPane fx:id="containerForTheMedia" layoutX="448.0" prefHeight="919.0" prefWidth="860.0">
+         <children>
+            <MediaView fitHeight="200.0" fitWidth="200.0" layoutX="81.0" layoutY="75.0" />
+         </children>
+      </AnchorPane>
+   </children>
+</AnchorPane>
