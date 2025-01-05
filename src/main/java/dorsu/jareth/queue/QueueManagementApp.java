@@ -2,9 +2,12 @@ package dorsu.jareth.queue;
 
 import dorsu.jareth.auth.Authentication;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.*;
+import java.util.Properties;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -132,7 +135,14 @@ public class QueueManagementApp extends Application {
     }
 
     private void initializeWebSocketClient() throws URISyntaxException {
-        URI serverUri = new URI("ws://localhost:8080");
+        String serverIp = getServerIpAddress(); // Get the server's LAN IP address
+        if (serverIp == null) {
+            // Handle the case where the server IP cannot be determined
+            System.err.println("Could not determine server IP address. Exiting.");
+            return; // Or throw an exception
+        }
+        int port = 8080; // Port number your server is listening on
+        URI serverUri = new URI("ws://" + serverIp + ":" + port);
 
         webSocketClient = new WebSocketClient(serverUri) {
             @Override
@@ -163,6 +173,18 @@ public class QueueManagementApp extends Application {
         };
 
         webSocketClient.connect();
+    }
+
+    // Function to get the server's IP address (you'll likely need to modify this)
+    private String getServerIpAddress() {
+        Properties properties = new Properties();
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream("config.properties")) {
+            properties.load(input);
+            return properties.getProperty("serverIp");
+        } catch (IOException e) {
+            System.err.println("Error loading configuration file: " + e.getMessage());
+            return null;
+        }
     }
 
     private void sendWebSocketMessage(String message) {

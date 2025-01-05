@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
 
-<AnchorPane id="AnchorPane" prefHeight="710.0" prefWidth="1002.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane id="AnchorPane" prefHeight="710.0" prefWidth="1002.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="dorsu.jareth.queue.MainDashboardController">
    <children>
       <AnchorPane fx:id="officesView" layoutX="229.0" layoutY="16.0" prefHeight="632.0" prefWidth="749.0">
          <children>
@@ -34,16 +34,16 @@
             </VBox>
          </children>
       </AnchorPane>
-      <Button fx:id="startServerButton" layoutX="51.0" layoutY="221.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="Start Server" />
+      <Button layoutX="51.0" layoutY="221.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="Start Server" />
       <ImageView fitHeight="169.0" fitWidth="179.0" layoutX="28.0" layoutY="14.0" pickOnBounds="true" preserveRatio="true">
          <image>
             <Image url="@../dorsu/jareth/auth/queue_logo.png" />
          </image>
       </ImageView>
-      <Button fx:id="stopServerButton" layoutX="51.0" layoutY="262.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="Stop Server" />
-      <Button fx:id="addNewOfficeButton" layoutX="51.0" layoutY="302.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="Add new Office" />
-      <Button fx:id="viewTicketChartsButton" layoutX="51.0" layoutY="344.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="View Ticket Charts" />
-      <Button fx:id="viewTicketHistoryButton" layoutX="51.0" layoutY="384.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="View Ticket History" />
+      <Button layoutX="51.0" layoutY="262.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="Stop Server" />
+      <Button layoutX="51.0" layoutY="302.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="Add new Office" />
+      <Button layoutX="51.0" layoutY="344.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="View Ticket Charts" />
+      <Button layoutX="51.0" layoutY="384.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="124.0" text="View Ticket History" />
       <Button layoutX="229.0" layoutY="661.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="97.0" text="Start Queue" />
       <Button fx:id="editOfficeButton" layoutX="453.0" layoutY="661.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="97.0" text="Edit Office" />
       <Button fx:id="deleteOfficeButton" layoutX="343.0" layoutY="661.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="97.0" text="Delete Office" />

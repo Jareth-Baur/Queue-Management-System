@@ -1,38 +1,27 @@
 package dorsu.jareth.queue;
 
-import dorsu.jareth.auth.DatabaseConnection;
+import dorsu.jareth.util.DatabaseConnection;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.InetAddress;
 import org.java_websocket.server.WebSocketServer;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Enumeration;
 
 public class QueueManagementServer extends WebSocketServer {
 
-    private Connection connection;
-
     public QueueManagementServer(InetSocketAddress address) {
         super(address);
-        connectToDatabase();
-    }
-
-    private void connectToDatabase() {
-        try {
-            String url = "jdbc:mysql://localhost:3306/queue_management";
-            String user = "root";
-            String password = ""; // Replace with your MySQL password
-            connection = DriverManager.getConnection(url, user, password);
-            System.out.println("Connected to the database.");
-        } catch (SQLException e) {
-            System.err.println("Database connection failed: " + e.getMessage());
-        }
     }
 
     @Override
@@ -51,26 +40,28 @@ public class QueueManagementServer extends WebSocketServer {
     public void onMessage(WebSocket conn, String message) {
         System.out.println("Message from client (" + conn.getRemoteSocketAddress() + "): " + message);
         String[] parts = message.split(":");
-        if (parts.length >= 2) { // Check if there's at least an officeID and a command
+        if (parts.length >= 2) {
             try {
-                int officeId = Integer.parseInt(parts[0]); //officeID is the first part
-                String command = parts[1].toLowerCase(); //Command is the second part
+                int officeId = Integer.parseInt(parts[0]);
+                String command = parts[1].toLowerCase();
 
                 switch (command) {
                     case "newticket":
                         issueNewTicket(conn, officeId);
                         break;
                     case "nextticket":
-                        callNextTicket(conn, officeId); // Pass officeId to callNextTicket
+                        callNextTicket(conn, officeId);
                         break;
                     case "queuestatus":
-                        sendQueueStatus(conn, officeId); // Pass officeId to sendQueueStatus
+                        sendQueueStatus(conn, officeId);
                         break;
                     default:
                         conn.send("Unknown command: " + message);
                 }
-            } catch (IOException | NumberFormatException e) {
+            } catch (NumberFormatException e) {
                 conn.send("Invalid office ID in message.");
+            } catch (IOException e) {
+                conn.send("Error processing request: " + e.getMessage());
             }
         } else {
             conn.send("Invalid message format.");
@@ -110,10 +101,10 @@ public class QueueManagementServer extends WebSocketServer {
         }
     }
 
-    // Method to fetch the office name from the database
     private String fetchOfficeName(int officeId) {
         String officeName = null;
-        try (Connection connection = DatabaseConnection.getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT name FROM offices WHERE id = ?")) {
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT name FROM offices WHERE id = ?")) {
             statement.setInt(1, officeId);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
@@ -122,55 +113,48 @@ public class QueueManagementServer extends WebSocketServer {
             }
         } catch (SQLException e) {
             System.err.println("Error fetching office name: " + e.getMessage());
-            // Consider adding more robust error handling here, such as displaying an error alert to the user.
         }
         return officeName;
     }
 
     private void issueNewTicket(WebSocket conn, int officeId) throws IOException {
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/queue_management", "root", "")) {
-            int newTicketNumber = getLastTicketNumber(connection) + 1; // Pass connection to getLastTicketNumber
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement("INSERT INTO tickets (ticket_number, status, created_at, office_id) VALUES (?, 'PENDING', NOW(), ?)")) {
+            int newTicketNumber = getLastTicketNumber(connection) + 1;
             String newTicket = "Ticket-" + newTicketNumber;
-            String sql = "INSERT INTO tickets (ticket_number, status, created_at, office_id) VALUES (?, 'PENDING', NOW(), ?)";
-            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                stmt.setString(1, newTicket);
-                stmt.setInt(2, officeId);
-                stmt.executeUpdate();
-                String officeName = getOfficeName(connection, officeId); // Get office name
-                conn.send("New ticket issued: " + newTicket + " (" + officeName + ")");
-                broadcastQueueStatus(officeId);
-                generateTicketText(newTicket, officeId);
-                conn.send("Ticket PDF generated: ticket_" + newTicketNumber + ".pdf");
-            }
+            stmt.setString(1, newTicket);
+            stmt.setInt(2, officeId);
+            stmt.executeUpdate();
+            String officeName = getOfficeName(connection, officeId);
+            conn.send("New ticket issued: " + newTicket + " (" + officeName + ")");
+            broadcastQueueStatus(officeId);
+            generateTicketText(newTicket, officeId);
+            conn.send("Ticket generated: ticket_" + newTicketNumber + ".txt");
         } catch (SQLException e) {
-            conn.send("Error issuing a new ticket or generating PDF: " + e.getMessage());
+            conn.send("Error issuing a new ticket: " + e.getMessage());
             System.err.println("Error issuing new ticket: " + e.getMessage());
         }
     }
 
     private void callNextTicket(WebSocket conn, int officeId) {
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/queue_management", "root", "")) {
-            String sql = "SELECT t.id, t.ticket_number, o.name AS office_name FROM tickets t JOIN offices o ON t.office_id = o.id WHERE t.status = 'PENDING' AND t.office_id = ? ORDER BY t.id LIMIT 1";
-            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                stmt.setInt(1, officeId);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        int id = rs.getInt("id");
-                        String nextTicket = rs.getString("ticket_number");
-                        String officeName = rs.getString("office_name");
-                        conn.send("Serving: " + nextTicket + " (" + officeName + ")");
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement("SELECT t.id, t.ticket_number, o.name AS office_name FROM tickets t JOIN offices o ON t.office_id = o.id WHERE t.status = 'PENDING' AND t.office_id = ? ORDER BY t.id LIMIT 1")) {
+            stmt.setInt(1, officeId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    String nextTicket = rs.getString("ticket_number");
+                    String officeName = rs.getString("office_name");
+                    conn.send("Serving: " + nextTicket + " (" + officeName + ")");
 
-                        sql = "UPDATE tickets SET status = 'SERVED' WHERE id = ?";
-                        try (PreparedStatement updateStmt = connection.prepareStatement(sql)) {
-                            updateStmt.setInt(1, id);
-                            updateStmt.executeUpdate();
-                        }
-
-                        broadcast("Serving: " + nextTicket + " (" + officeName + ")");
-                        broadcastQueueStatus(officeId);
-                    } else {
-                        conn.send("No tickets in the queue for this office.");
+                    try (PreparedStatement updateStmt = connection.prepareStatement("UPDATE tickets SET status = 'SERVED' WHERE id = ?")) {
+                        updateStmt.setInt(1, id);
+                        updateStmt.executeUpdate();
                     }
+                    broadcast("Serving: " + nextTicket + " (" + officeName + ")");
+                    broadcastQueueStatus(officeId);
+                } else {
+                    conn.send("No tickets in the queue for this office.");
                 }
             }
         } catch (SQLException e) {
@@ -179,10 +163,8 @@ public class QueueManagementServer extends WebSocketServer {
         }
     }
 
-    // Helper function to get the office name
     private String getOfficeName(Connection connection, int officeId) throws SQLException {
-        String sql = "SELECT name FROM offices WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (PreparedStatement stmt = connection.prepareStatement("SELECT name FROM offices WHERE id = ?")) {
             stmt.setInt(1, officeId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -190,13 +172,11 @@ public class QueueManagementServer extends WebSocketServer {
                 }
             }
         }
-        return "Unknown Office"; // Or handle the case where the office is not found appropriately
+        return "Unknown Office";
     }
 
-    //Helper function to retrieve the last ticket number from the database.
     private int getLastTicketNumber(Connection connection) throws SQLException {
-        String sql = "SELECT MAX(id) AS max_id FROM tickets";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery("SELECT MAX(id) AS max_id FROM tickets")) {
             if (rs.next()) {
                 return rs.getInt("max_id");
             }
@@ -205,28 +185,26 @@ public class QueueManagementServer extends WebSocketServer {
     }
 
     private void sendQueueStatus(WebSocket conn, int officeId) {
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/queue_management", "root", "")) {
-            String sql = "SELECT t.ticket_number, o.name AS office_name FROM tickets t JOIN offices o ON t.office_id = o.id WHERE t.status = 'PENDING' AND t.office_id = ? ORDER BY t.id";
-            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                stmt.setInt(1, officeId);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    StringBuilder queueStatusBuilder = new StringBuilder("Queue Status: ");
-                    boolean firstTicket = true;
-                    while (rs.next()) {
-                        String ticketNumber = rs.getString("ticket_number");
-                        String officeName = rs.getString("office_name");
-                        if (!firstTicket) {
-                            queueStatusBuilder.append(", ");
-                        }
-                        queueStatusBuilder.append(ticketNumber).append(" (").append(officeName).append(")");
-                        firstTicket = false;
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement("SELECT t.ticket_number, o.name AS office_name FROM tickets t JOIN offices o ON t.office_id = o.id WHERE t.status = 'PENDING' AND t.office_id = ? ORDER BY t.id")) {
+            stmt.setInt(1, officeId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                StringBuilder queueStatusBuilder = new StringBuilder("Queue Status: ");
+                boolean firstTicket = true;
+                while (rs.next()) {
+                    String ticketNumber = rs.getString("ticket_number");
+                    String officeName = rs.getString("office_name");
+                    if (!firstTicket) {
+                        queueStatusBuilder.append(", ");
                     }
-
-                    if (queueStatusBuilder.length() == "Queue Status: ".length()) {
-                        queueStatusBuilder.append("The queue is empty for this office.");
-                    }
-                    conn.send(queueStatusBuilder.toString());
+                    queueStatusBuilder.append(ticketNumber).append(" (").append(officeName).append(")");
+                    firstTicket = false;
                 }
+
+                if (queueStatusBuilder.length() == "Queue Status: ".length()) {
+                    queueStatusBuilder.append("The queue is empty for this office.");
+                }
+                conn.send(queueStatusBuilder.toString());
             }
         } catch (SQLException e) {
             conn.send("Error fetching queue status: " + e.getMessage());
@@ -235,62 +213,81 @@ public class QueueManagementServer extends WebSocketServer {
     }
 
     private void broadcastQueueStatus(int officeId) {
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/queue_management", "root", "")) {
-            String sql = "SELECT t.ticket_number, o.name AS office_name FROM tickets t JOIN offices o ON t.office_id = o.id WHERE t.status = 'PENDING' AND t.office_id = ? ORDER BY t.id";
-            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                stmt.setInt(1, officeId);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    StringBuilder queueStatusBuilder = new StringBuilder("Queue Status: ");
-                    boolean firstTicket = true;
-                    while (rs.next()) {
-                        String ticketNumber = rs.getString("ticket_number");
-                        String officeName = rs.getString("office_name");
-                        if (!firstTicket) {
-                            queueStatusBuilder.append(", ");
-                        }
-                        queueStatusBuilder.append(ticketNumber).append(" (").append(officeName).append(")");
-                        firstTicket = false;
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement("SELECT t.ticket_number, o.name AS office_name FROM tickets t JOIN offices o ON t.office_id = o.id WHERE t.status = 'PENDING' AND t.office_id = ? ORDER BY t.id")) {
+            stmt.setInt(1, officeId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                StringBuilder queueStatusBuilder = new StringBuilder("Queue Status: ");
+                boolean firstTicket = true;
+                while (rs.next()) {
+                    String ticketNumber = rs.getString("ticket_number");
+                    String officeName = rs.getString("office_name");
+                    if (!firstTicket) {
+                        queueStatusBuilder.append(", ");
                     }
-
-                    if (queueStatusBuilder.length() == "Queue Status: ".length()) {
-                        queueStatusBuilder.append("The queue is empty for this office.");
-                    }
-                    broadcast(queueStatusBuilder.toString());
+                    queueStatusBuilder.append(ticketNumber).append(" (").append(officeName).append(")");
+                    firstTicket = false;
                 }
+
+                if (queueStatusBuilder.length() == "Queue Status: ".length()) {
+                    queueStatusBuilder.append("The queue is empty for this office.");
+                }
+                broadcast(queueStatusBuilder.toString());
             }
         } catch (SQLException e) {
             System.err.println("Error broadcasting queue status: " + e.getMessage());
         }
     }
 
-    private int getLastTicketNumber() throws SQLException {
-        String sql = "SELECT MAX(id) AS max_id FROM tickets";
-        Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery(sql);
-
-        if (rs.next()) {
-            return rs.getInt("max_id");
-        }
-        return 0;
-    }
-
     public static void main(String[] args) {
-        InetSocketAddress address = new InetSocketAddress("localhost", 8080);
+        String lanIp = getLanIpAddress(); // Get LAN IP address using Method 2
+        if (lanIp == null) {
+            System.err.println("Could not determine a suitable LAN IP address. Exiting.");
+            return;
+        }
+        System.out.println("LAN IP Address: " + lanIp);
+        int port = 8080; // Choose your port
+        InetSocketAddress address = new InetSocketAddress(lanIp, port);
         QueueManagementServer server = new QueueManagementServer(address);
         try {
             server.start();
-            System.out.println("Queue Management WebSocket server started on port 8080");
+            System.out.println("Queue Management WebSocket server started on " + lanIp + ":" + port);
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
                     server.stop();
                     System.out.println("Server stopped successfully.");
-                } catch (InterruptedException e) {
+                    DatabaseConnection.closeConnection();
+                } catch (InterruptedException | SQLException e) {
                     System.err.println("Error while stopping the server: " + e.getMessage());
                 }
             }));
         } catch (Exception e) {
             System.err.println("Error starting the server: " + e.getMessage());
         }
+    }
+
+    private static String getLanIpAddress() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = interfaces.nextElement();
+                if (networkInterface.isUp() && !networkInterface.isLoopback()) {  // Consider only up, non-loopback interfaces
+                    Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
+                    while (addresses.hasMoreElements()) {
+                        InetAddress address = addresses.nextElement();
+                        if (!address.isLoopbackAddress() && address.getAddress().length > 0) {
+                            String ipAddress = address.getHostAddress();
+                            if (ipAddress.startsWith("192.168.") || ipAddress.startsWith("10.") || ipAddress.startsWith("172.16.")) {
+                                return ipAddress; // Return the first suitable IPv4 address
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            System.err.println("Error getting network interfaces: " + e.getMessage());
+        }
+        return null; // Return null if no suitable IP address is found
     }
 }

@@ -1,7 +1,7 @@
 package dorsu.jareth.auth;
 
 import dorsu.jareth.queue.MainDashboard;
-import dorsu.jareth.queue.QueueManagementApp;
+import dorsu.jareth.util.DatabaseConnection;
 import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;

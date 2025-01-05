@@ -1,5 +1,6 @@
 
-import dorsu.jareth.auth.DatabaseConnection;
+
+import dorsu.jareth.util.DatabaseConnection;
 import javafx.application.Application;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
